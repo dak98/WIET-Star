@@ -1,4 +1,4 @@
-QT += multimedia
+QT += multimedia widgets
 
 HEADERS +=
 
