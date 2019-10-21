@@ -3,6 +3,8 @@
 
 #include <QMainWindow>
 
+#include <frequency_graph.hpp>
+
 namespace wiet_star
 {
 
@@ -15,6 +17,9 @@ public:
 signals:
 
 public slots:
+
+private:
+    frequency_graph transform_result;
 };
 
 } // wiet_star
