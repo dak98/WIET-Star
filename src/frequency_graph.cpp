@@ -1,4 +1,4 @@
-#include "frequency_graph.hpp"
+#include <frequency_graph.hpp>
 
 #include <QtCore/QDebug>
 

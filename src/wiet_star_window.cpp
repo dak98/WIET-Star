@@ -1,4 +1,4 @@
-#include "wiet_star_window.hpp"
+#include <wiet_star_window.hpp>
 
 namespace wiet_star
 {
