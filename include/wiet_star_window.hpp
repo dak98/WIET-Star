@@ -12,7 +12,9 @@ class wiet_star_window : public QMainWindow
 {
     Q_OBJECT
 public:
-    explicit wiet_star_window(QWidget *parent = nullptr);
+    wiet_star_window(freq_graph_config const& graph_config,
+                     input_audio_config const& audio_config,
+                     QWidget *parent = nullptr);
 
 signals:
 
