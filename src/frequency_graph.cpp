@@ -2,11 +2,12 @@
 
 #include <QtCore/QDebug>
 
+#include <iterator>
 #include <system_error>
 #include <thread>
 #include <unistd.h>
 
-#include <iostream>
+#include <fft.hpp>
 
 namespace wiet_star
 {
@@ -15,9 +16,12 @@ frequency_graph::frequency_graph(freq_graph_config const& graph_config,
                                  input_audio_config const& audio_config)
     : refresh_timer(new QTimer(this))
 {
-    x_axis.setTitleText("Częstotliwość");
-    x_axis.setRange(graph_config.min_frequency, graph_config.max_frequency);
+    sample_size = audio_config.sample_size;
+    sample_rate = audio_config.sample_rate;
 
+    x_axis.setTitleText("Częstotliwość");
+    x_axis.setRange(graph_config.min_frequency, sample_rate);
+    x_axis.setMinorTickCount(4);
     y_axis.setTitleText("Amplituda");
     y_axis.setRange(graph_config.min_amplitude, graph_config.max_amplitude);
 
@@ -73,7 +77,7 @@ frequency_graph::frequency_graph(freq_graph_config const& graph_config,
     }
 
     connect(refresh_timer.get(), &QTimer::timeout, this, &frequency_graph::refresh_graph);
-    refresh_timer->start(5000);
+    refresh_timer->start(1000);
 }
 
 frequency_graph::~frequency_graph()
@@ -85,19 +89,32 @@ frequency_graph::~frequency_graph()
 
 void frequency_graph::refresh_graph()
 {
-    char audio_data[100];
-    if (-1 == input_buffer->read(audio_data, 100))
-    {
-        std::cout << audio_data << std::endl;
+    int const size = 8192;
+    QByteArray audio_data = input_buffer->readAll();
+    qDebug() << "Samples read: " << audio_data.size();
+
+    if (audio_data.size() < size)
+        return;
+
+    QDataStream ds(audio_data);
+    std::vector<sample_type> samples(size);
+    for (int i = 0; i < size; i++) {
+        qint8 sample;
+        ds >> sample;
+        samples[i] = sample;
     }
 
-    qreal step = (x_axis.max() - x_axis.min()) / 100;
-    QVector<QPointF> points(100);
-    for (int i = 0; i < 100; i++)
+    samples = fft(samples);
+
+    qreal step = (x_axis.max() - x_axis.min()) / size;
+    QVector<QPointF> points(size);
+    for (int i = 0; i < size; i++)
     {
         points[i].setX(x_axis.min() + i * step);
-        qreal y = uchar(audio_data[i]);
-        points[i].setY(y / 128);
+        qreal y = std::abs(samples[i]);
+        points[i].setY(y);
+
+
     }
     main_series.replace(points);
 }

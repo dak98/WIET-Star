@@ -55,6 +55,9 @@ private slots:
     void refresh_graph();
 
 private:
+    unsigned sample_rate;
+    unsigned sample_size;
+
     QChart main_graph;
     QLineSeries main_series;
     QValueAxis x_axis, y_axis;
