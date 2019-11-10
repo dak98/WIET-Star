@@ -1,32 +1,30 @@
-#include "../include/fft.hpp"
+#include <fft.hpp>
 
-using namespace std::complex_literals;
-using std::vector;
-using std::complex;
+std::vector<sample_type> fft(std::vector<sample_type> data)
+{
+    double const size = data.size();
+    if (size <= 1)
+        return data;
 
-vector<complex<double>> fft(vector<complex<double>> data) {
-    double N = data.size();
-    if (N <= 1) return data;
+    sample_type const w = std::exp(-2 * PI * i / size);
+    sample_type w_k = 1.0;
 
-    complex<double> w = std::exp(-2 * PI * i / N);
-    complex<double> w_k = 1.0;
+    std::vector<sample_type> even;
+    std::vector<sample_type> odd;
 
-    vector<complex<double>> even;
-    vector<complex<double>> odd;
+    for (unsigned index = 0; index < size; index += 2)
+        even.push_back(data[index]);
 
-    for (int i = 0; i < N; i+=2) {
-        even.push_back(data.at(i));
-    }
-    for (int i = 1; i < N; i+=2) {
-        odd.push_back(data.at(i));
-    }
+    for (unsigned index = 1; index < size; index += 2)
+        odd.push_back(data[index]);
 
     even = fft(even);
     odd = fft(odd);
 
-    for (int k = 0; k < N / 2; k++) {
-        data[k] = even[k] + w_k * odd[k];
-        data[k + N / 2] = even[k] - w_k * odd[k];
+    for (unsigned index = 0; index < size / 2; index++)
+    {
+        data[index] = even[index] + w_k * odd[index];
+        data[index + unsigned(size) / 2] = even[index] - w_k * odd[index];
         w_k *= w;
     }
 
