@@ -9,7 +9,7 @@ using shm = bip::managed_shared_memory;
 
 int main(int argc, char* argv[])
 {
-    if (argc != 2)
+    if (argc != 3)
     {
         std::cout << "Wrong number of parameters" << std::endl;
         exit(EXIT_FAILURE);
@@ -17,8 +17,10 @@ int main(int argc, char* argv[])
 
     QApplication app(argc, argv);
 
-    auto list = QAudioDeviceInfo::availableDevices(QAudio::AudioInput);
-    QAudioDeviceInfo const audio_device_info = list[0];
+    auto list = QAudioDeviceInfo::availableDevices(QAudio::AudioInput);\
+    QAudioDeviceInfo audio_device_info = !strcmp(argv[2], "default")
+                                         ? list[0]
+                                         : list[8];
     if (audio_device_info.isNull())
     {
         std::cout << "There is no audio input device available" << std::endl;
@@ -37,7 +39,6 @@ int main(int argc, char* argv[])
 
     shm segment(bip::open_or_create, argv[1], 65536);
     double* dest = segment.find_or_construct<double>("double")();
-
     AudioInputWrapper w(input_device, *dest);
 
 #ifdef QT_DEBUG

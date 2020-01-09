@@ -1,71 +1,130 @@
 #include <wiet_star_window.hpp>
 
-#include <QTimer>
+#include <QDate>
+#include <QFileInfo>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QPushButton>
+#include <QVBoxLayout>
+
+#include <difference_graph.hpp>
 
 namespace wiet_star
 {
 
-wiet_star_window::wiet_star_window(QWidget *parent)
-    : QMainWindow{parent}
-      , segment1{bip::open_or_create, "Audio1", 65536}
-      , segment2{bip::open_or_create, "Audio2", 65536}
+wiet_star_window::wiet_star_window(QString const& playlist_dir, QWidget *parent)
+    : QWidget{parent},
+      playlist_dir{playlist_dir}
 {
-    freq1 = segment1.find_or_construct<double>("double")();
-    freq2 = segment2.find_or_construct<double>("double")();
-
-    points.reserve(100);
-    for (int i = 0; i < 100; i++)
-        points.push_back(QPointF{static_cast<qreal>(i), 0});
-
-    setWindowTitle("WIET STAR");
-
-    QChartView* chart_view = new QChartView{&chart, this};
-    QValueAxis* axisX = new QValueAxis{this};
-    QValueAxis* axisY = new QValueAxis{this};
-    chart_view->setMinimumSize(800, 600);
-    chart.addSeries(&main_series);
-    axisX->setRange(0, 100);
-    axisY->setRange(-4000, 4000);
-    axisX->setMinorTickCount(2);
-    chart.setAxisX(axisX, &main_series);
-    chart.setAxisY(axisY, &main_series);
-    chart.legend()->hide();
-
-    main_series.replace(points);
-    setCentralWidget(chart_view);
-
-#ifdef QT_DEBUG
-    process1.start("../build-audio-Desktop-Debug/audio", {"Audio1"});
-    process2.start("../build-audio-Desktop-Debug/audio", {"Audio2"});
-#else
-    process1.start("../build-audio-Desktop-Release/audio", {"Audio1"});
-    process2.start("../build-audio-Desktop-Release/audio", {"Audio2"});
-#endif
-
-    QTimer* timer = new QTimer(this);
-    connect(timer, &QTimer::timeout, this, &wiet_star_window::refresh_graph);
-    timer->start(35);
+    resize(800, 600);
+    set_menu_layout();
 }
 
-wiet_star_window::~wiet_star_window()
+void wiet_star_window::set_menu_layout()
 {
-    process1.kill();
-    process2.kill();
+    playlist = new directory_listing{playlist_dir, "*.mp3"};
+    QListWidget* leaderboard = new QListWidget;
 
-    bip::shared_memory_object::remove("Audio1");
-    bip::shared_memory_object::remove("Audio2");
-}
-
-void wiet_star_window::refresh_graph()
-{
-    // For C++20, std::shift_left could be used.
-    for (int i = 0; i < 99; i++)
+    QFile results_file {"RESULTS.txt"};
+    if (results_file.open(QIODevice::ReadOnly))
     {
-        points[i].setY(points[i + 1].y());
-        points[99].setY(*freq1 - *freq2);
+        QTextStream strm {&results_file};
+        while (!strm.atEnd())
+            leaderboard->addItem(strm.readLine());
+
+        results_file.close();
     }
 
-    main_series.replace(points);
+    QPushButton* exit_button= new QPushButton{"EXIT"};
+    QPushButton* refresh_button = new QPushButton{"REFRESH"};
+    QPushButton* play_button = new QPushButton{"PLAY"};
+
+    connect(exit_button, &QPushButton::clicked, this, &QWidget::close);
+    connect(refresh_button, &QPushButton::clicked, playlist, &directory_listing::refresh);
+    connect(play_button, &QPushButton::clicked, this, &wiet_star_window::set_game_layout);
+
+    QHBoxLayout* buttons_layout = new QHBoxLayout;
+    buttons_layout->addWidget(exit_button);
+    buttons_layout->addWidget(refresh_button);
+    buttons_layout->addWidget(play_button);
+
+    QHBoxLayout* lists_layout = new QHBoxLayout;
+    lists_layout->addWidget(playlist);
+    lists_layout->addWidget(leaderboard);
+
+    QVBoxLayout* buttons_playlist_layout = new QVBoxLayout;
+    buttons_playlist_layout->addLayout(lists_layout);
+    buttons_playlist_layout->addLayout(buttons_layout);
+
+    qDeleteAll(children());
+    setLayout(buttons_playlist_layout);
+}
+
+void wiet_star_window::set_game_layout()
+{
+    if (!playlist->is_item_highlighted())
+        return;
+
+    QPushButton* exit_button = new QPushButton {"STOP AND EXIT"};
+    connect(exit_button, &QPushButton::clicked, this, &wiet_star_window::set_menu_layout);
+    QSlider* volume_slider = new QSlider {Qt::Horizontal};
+    volume_slider->setMaximum(100);
+    volume_slider->setValue(50);
+    score_label = new QLabel {"Score: 0.0"};
+
+    QHBoxLayout* exit_score_layout = new QHBoxLayout;
+    exit_score_layout->addWidget(exit_button);
+    exit_score_layout->addWidget(volume_slider);
+    exit_score_layout->addWidget(score_label);
+
+    difference_graph* graph = new difference_graph;
+    connect(graph, &difference_graph::last_diff_value, this, &wiet_star_window::update_score);
+
+    QVBoxLayout* game_layout = new QVBoxLayout;
+    game_layout->addWidget(graph);
+    game_layout->addLayout(exit_score_layout);
+
+    player = new audio_player {game_layout};
+    connect(volume_slider, &QSlider::valueChanged, player, &audio_player::set_volume);
+    connect(player, &audio_player::song_ended, [&]()
+    {
+        qDebug() << "punkt1";
+        write_result();
+        qDebug() << "punkt2";
+        set_menu_layout();
+        qDebug() << "punkt3";
+    });
+
+    last_song = playlist->get_current_item();
+    QFileInfo const path {playlist_dir + "/" + last_song.value() + ".mp3"};
+    QString const abs_path {path.absoluteFilePath()};
+    player->play(QUrl::fromLocalFile(abs_path));
+
+    qDeleteAll(children());
+    setLayout(game_layout);
+}
+
+void wiet_star_window::update_score(double const new_value)
+{
+    if (new_value > 1)
+    {
+        score += 1 / new_value * 0.1;
+        score_label->setText("Score: " + QString::number(score));
+    }
+}
+
+void wiet_star_window::write_result()
+{
+    QFile f {"RESULTS.txt"};
+    if (f.open(QIODevice::Append | QIODevice::WriteOnly))
+    {
+        QTextStream strm {&f};
+        strm << "[" << QDate::currentDate().toString() << "] "
+             << last_song.value() << " : " << QString::number(score)
+             << "\n";
+
+        f.close();
+    }
 }
 
 } // wiet_star

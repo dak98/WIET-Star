@@ -1,45 +1,38 @@
 #ifndef WIET_STAR_WINDOW_HPP
 #define WIET_STAR_WINDOW_HPP
 
-#include <QMainWindow>
+#include <QWidget>
 
-#include <QChart>
-#include <QChartView>
-#include <QLineSeries>
-#include <QProcess>
-#include <QValueAxis>
+#include <QLabel>
+#include <QMediaPlayer>
 
-QT_CHARTS_USE_NAMESPACE
-
-#include <boost/interprocess/managed_shared_memory.hpp>
-namespace bip = boost::interprocess;
-using shm = bip::managed_shared_memory;
+#include <audio_player.hpp>
+#include <directory_listing.hpp>
 
 namespace wiet_star
 {
 
-class wiet_star_window : public QMainWindow
+class wiet_star_window : public QWidget
 {
     Q_OBJECT
 
-
 public:
-    wiet_star_window(QWidget *parent = nullptr);
-    ~wiet_star_window();
-
-signals:
+    wiet_star_window(QString const& playlist_dir, QWidget *parent = nullptr);
 
 public slots:
-    void refresh_graph();
+    void set_menu_layout();
+    void set_game_layout();
+    void update_score(double const new_value);
+    void write_result();
 
 private:
-    bip::managed_shared_memory segment1, segment2;
-    double *freq1, *freq2;
-    QProcess process1, process2;
+    QString const playlist_dir;
+    audio_player* player;
+    std::optional<QString> last_song;
+    directory_listing* playlist;
 
-    QVector<QPointF> points;
-    QLineSeries main_series;
-    QChart chart;
+    double score {0.0};
+    QLabel* score_label;
 };
 
 } // wiet_star
