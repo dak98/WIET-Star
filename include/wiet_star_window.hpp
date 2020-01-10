@@ -27,7 +27,6 @@ public slots:
 
 private:
     QString const playlist_dir;
-    audio_player* player;
     std::optional<QString> last_song;
     directory_listing* playlist;
 

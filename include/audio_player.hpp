@@ -16,6 +16,8 @@ public:
     audio_player(QObject *parent = nullptr);
     ~audio_player();
 
+    void set_video_widget(QVideoWidget* widget) { video_widget = widget; }
+
 signals:
     void song_ended();
 
@@ -26,6 +28,7 @@ public slots:
 
 private:
     QMediaPlayer* player {nullptr};
+    std::optional<QVideoWidget*> video_widget;
 };
 
 } // wiet_star

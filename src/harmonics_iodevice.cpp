@@ -1,47 +1,35 @@
 #include <harmonics_iodevice.hpp>
 
-#ifdef QT_DEBUG
-#include <QtCharts/QXYSeries>
-#endif
-
 #include <algorithm>
 
 #include <num_range.hpp>
 
-HarmonicsIODevice::HarmonicsIODevice(double& dest, QObject *parent)
-    : QIODevice(parent)
-      , dest(dest)
-{
-}
+#include <QDebug>
 
-#ifdef QT_DEBUG
-HarmonicsIODevice::HarmonicsIODevice(QXYSeries *series, double& dest, QObject *parent)
-    : QIODevice(parent)
-      , dest(dest)
-      , series(series)
+namespace wiet_star
 {
-}
-#endif
 
-qint64 HarmonicsIODevice::readData(char *data, qint64 maxSize)
+harmonics_iodevice::harmonics_iodevice(QLineSeries* series, QObject *parent)
+    : QIODevice {parent},
+      series {series}
+{}
+
+qint64 harmonics_iodevice::readData(char *data, qint64 maxSize)
 {
     Q_UNUSED(data)
     Q_UNUSED(maxSize)
     return -1;
 }
 
-qint64 HarmonicsIODevice::writeData(const char *data, qint64 maxSize)
+qint64 harmonics_iodevice::writeData(const char *data, qint64 maxSize)
 {
-#ifdef QT_DEBUG
-    static QVector<QPointF> frequencies;
     if (frequencies.empty())
     {
         frequencies.reserve(100);
         for (int i = 0; i < 100; i++)
             frequencies.push_back(QPointF(i, 0));
     }
-#endif
-    static const int resolution = 4;
+
     size_type const available_samples = static_cast<size_type>(maxSize) / resolution;
 
     if (buffer.empty())
@@ -87,14 +75,14 @@ qint64 HarmonicsIODevice::writeData(const char *data, qint64 maxSize)
     it_diff_type const max_amplitude_index = std::distance(std::begin(buffer_copy), max_amplitude);
     double const harmonic = max_amplitude_index * freq_step;
 
-#ifdef QT_DEBUG
     for (int i = 0; i < 99; i++)
         frequencies[i].setY(frequencies[i + 1].y());
     frequencies[99].setY(harmonic);
-
     series->replace(frequencies);
-#endif
-    dest = harmonic;
 
+    emit new_harmonic(harmonic);
+    
     return static_cast<int>(sample_count - start) * resolution;
 }
+
+} // wiet_star

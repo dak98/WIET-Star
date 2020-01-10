@@ -1,13 +1,16 @@
 #include <wiet_star_window.hpp>
 
+#include <QCheckBox>
+#include <QComboBox>
 #include <QDate>
 #include <QFileInfo>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPushButton>
 #include <QVBoxLayout>
+#include <QVideoWidget>
 
-#include <difference_graph.hpp>
+#include <graphs_stacked_layout.hpp>
 
 namespace wiet_star
 {
@@ -22,7 +25,7 @@ wiet_star_window::wiet_star_window(QString const& playlist_dir, QWidget *parent)
 
 void wiet_star_window::set_menu_layout()
 {
-    playlist = new directory_listing{playlist_dir, "*.mp3"};
+    playlist = new directory_listing{playlist_dir, "*.mp4"};
     QListWidget* leaderboard = new QListWidget;
 
     QFile results_file {"RESULTS.txt"};
@@ -72,31 +75,57 @@ void wiet_star_window::set_game_layout()
     volume_slider->setValue(50);
     score_label = new QLabel {"Score: 0.0"};
 
-    QHBoxLayout* exit_score_layout = new QHBoxLayout;
-    exit_score_layout->addWidget(exit_button);
-    exit_score_layout->addWidget(volume_slider);
-    exit_score_layout->addWidget(score_label);
+    QHBoxLayout* bottom_panel_layout = new QHBoxLayout;
+    bottom_panel_layout->addWidget(exit_button);
+    bottom_panel_layout->addWidget(volume_slider);
+    bottom_panel_layout->addWidget(score_label);
 
-    difference_graph* graph = new difference_graph;
-    connect(graph, &difference_graph::last_diff_value, this, &wiet_star_window::update_score);
+    graphs_stacked_layout* graphs = new graphs_stacked_layout;
+    connect(graphs, &graphs_stacked_layout::last_diff_value, this, &wiet_star_window::update_score);
 
-    QVBoxLayout* game_layout = new QVBoxLayout;
-    game_layout->addWidget(graph);
-    game_layout->addLayout(exit_score_layout);
-
-    player = new audio_player {game_layout};
+    audio_player* player = new audio_player {exit_button};
     connect(volume_slider, &QSlider::valueChanged, player, &audio_player::set_volume);
-    connect(player, &audio_player::song_ended, [&]()
+    connect(player, &audio_player::song_ended, [this]()
     {
-        qDebug() << "punkt1";
         write_result();
-        qDebug() << "punkt2";
         set_menu_layout();
-        qDebug() << "punkt3";
     });
 
+    QVideoWidget* video_display = new QVideoWidget;
+    player->set_video_widget(video_display);
+    video_display->hide();
+
+    QHBoxLayout* video_graph_layout = new QHBoxLayout;
+    video_graph_layout->addWidget(video_display);
+    video_graph_layout->addLayout(graphs);
+
+    QComboBox* graph_selection = new QComboBox;
+    graph_selection->addItem(tr("Difference Graph"));
+    graph_selection->addItem(tr("Audio Capture Graph"));
+    graph_selection->addItem(tr("Microphone's Audio Graph"));
+
+    connect(graph_selection, SIGNAL(activated(int)), graphs, SLOT(setCurrentIndex(int)));
+
+    QCheckBox* video_display_switch = new QCheckBox {"Video Display [ON/OFF]"};
+    connect(video_display_switch, &QCheckBox::stateChanged, [video_display](int state)
+    {
+        if (state == Qt::CheckState::Checked)
+            video_display->show();
+        else
+            video_display->hide();
+    });
+
+    QHBoxLayout* top_panel_layout = new QHBoxLayout;
+    top_panel_layout->addWidget(video_display_switch);
+    top_panel_layout->addWidget(graph_selection);
+
+    QVBoxLayout* game_layout = new QVBoxLayout;
+    game_layout->addLayout(top_panel_layout);
+    game_layout->addLayout(video_graph_layout);
+    game_layout->addLayout(bottom_panel_layout);
+
     last_song = playlist->get_current_item();
-    QFileInfo const path {playlist_dir + "/" + last_song.value() + ".mp3"};
+    QFileInfo const path {playlist_dir + "/" + last_song.value() + ".mp4"};
     QString const abs_path {path.absoluteFilePath()};
     player->play(QUrl::fromLocalFile(abs_path));
 

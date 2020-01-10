@@ -1,6 +1,4 @@
 #include <QtWidgets/QApplication>
-#include <QGuiApplication>
-#include <QQmlApplicationEngine>
 #include <wiet_star_window.hpp>
 
 int main(int argc, char* argv[])

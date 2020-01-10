@@ -9,7 +9,7 @@ audio_player::audio_player(QObject *parent)
 audio_player::~audio_player()
 {
     if (player != nullptr)
-        delete player;
+        player->deleteLater();
 }
 
 void audio_player::play(QUrl const& path)
@@ -21,6 +21,9 @@ void audio_player::play(QUrl const& path)
     }
 
     player = new QMediaPlayer;
+
+    if (video_widget)
+        player->setVideoOutput(*video_widget);
 
     player->setMedia(path);
     player->setVolume(50);
@@ -38,11 +41,7 @@ void audio_player::stop()
     }
 
     if (player->mediaStatus() == QMediaPlayer::EndOfMedia) // Song ended normally
-    {
         emit song_ended();
-
-        delete player;
-    }
 }
 
 void audio_player::set_volume(int const volume)
