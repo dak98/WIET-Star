@@ -30,5 +30,5 @@ transform requiers code changes but it looks awesome :>).
 ![FourierTransform](media/FourierTransform.gif)
 * Spectogram created from the Fourier transform:
 ![Spectogram](media/Spectogram.gif)
-* The difference graphs comparing spectograms from two different sources
+* The difference graph comparing spectograms from two different sources
 ![Difference](media/Difference.gif)
